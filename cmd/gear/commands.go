@@ -172,6 +172,15 @@ func Execute() {
 	linkCmd.Flags().VarP(&networkLinks, "net-links", "n", "List of comma separated port pairs to wire '<local_host>:local_port>:<host>:<remote_port>,...'. local_host may be empty. It defaults to 127.0.0.1")
 	gearCmd.AddCommand(linkCmd)
 
+	addLinkCmd := &cobra.Command{
+		Use:   "add <name>...",
+		Short: "Add network links to the named containers.",
+		Long:  "Adds network links to the named containers. Restart won't be required if the container is already running.",
+		Run:   addContainerLinks,
+	}
+	addLinkCmd.Flags().VarP(&networkLinks, "net-links", "n", "List of comma separated port pairs to wire '<local_host>:local_port>:<host>:<remote_port>,...'. local_host may be empty. It defaults to 127.0.0.1")
+	linkCmd.AddCommand(addLinkCmd)
+
 	startCmd := &cobra.Command{
 		Use:   "start <name>...",
 		Short: "Invoke systemd to start a container",
@@ -655,6 +664,40 @@ func linkContainers(cmd *cobra.Command, args []string) {
 		Output: os.Stdout,
 		OnSuccess: func(r *gcmd.CliJobResponse, w io.Writer, job gcmd.JobRequest) {
 			fmt.Fprintf(w, "Links set on %s\n", job.(*cjobs.LinkContainersRequest).ContainerLinks.String())
+		},
+		Transport: t,
+	}.StreamAndExit()
+}
+
+func addContainerLinks(cmd *cobra.Command, args []string) {
+	if len(args) < 1 {
+		gcmd.Fail(1, "Valid arguments: <id> ...")
+	}
+
+	t := defaultTransport.Get()
+
+	ids, err := gcmd.NewContainerLocators(t, args...)
+	if err != nil {
+		gcmd.Fail(1, "You must pass one or more valid service names: %s", err.Error())
+	}
+	if networkLinks.NetworkLinks == nil {
+		networkLinks.NetworkLinks = &containers.NetworkLinks{}
+	}
+
+	log.Printf("%+v", networkLinks)
+
+	gcmd.Executor{
+		On: ids,
+		Group: func(on ...gcmd.Locator) gcmd.JobRequest {
+			links := &containers.ContainerLinks{make([]containers.ContainerLink, 0, len(on))}
+			for i := range on {
+				links.Links = append(links.Links, containers.ContainerLink{gcmd.AsIdentifier(on[i]), *networkLinks.NetworkLinks})
+			}
+			return &cjobs.AddContainerLinksRequest{links}
+		},
+		Output: os.Stdout,
+		OnSuccess: func(r *gcmd.CliJobResponse, w io.Writer, job gcmd.JobRequest) {
+			fmt.Fprintf(w, "Links set on %s\n", job.(*cjobs.AddContainerLinksRequest).ContainerLinks.String())
 		},
 		Transport: t,
 	}.StreamAndExit()

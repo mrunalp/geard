@@ -196,6 +196,10 @@ type LinkContainersRequest struct {
 	*containers.ContainerLinks
 }
 
+type AddContainerLinksRequest struct {
+	*containers.ContainerLinks
+}
+
 type ListImagesRequest struct {
 	DockerSocket string
 }

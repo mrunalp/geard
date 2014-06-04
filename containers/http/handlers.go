@@ -29,6 +29,7 @@ func (h *HttpExtension) Routes() []http.HttpJobHandler {
 		&HttpRestartContainerRequest{},
 
 		&HttpLinkContainersRequest{},
+		&HttpAddContainerLinksRequest{},
 
 		&HttpListContainersRequest{},
 		&HttpListImagesRequest{},
@@ -67,6 +68,8 @@ func (h *HttpExtension) HttpJobFor(job interface{}) (exc http.RemoteExecutable, 
 		exc = &HttpDeleteContainerRequest{DeleteContainerRequest: *j}
 	case *cjobs.LinkContainersRequest:
 		exc = &HttpLinkContainersRequest{LinkContainersRequest: *j}
+	case *cjobs.AddContainerLinksRequest:
+		exc = &HttpAddContainerLinksRequest{AddContainerLinksRequest: *j}
 	case *cjobs.ListContainersRequest:
 		exc = &HttpListContainersRequest{ListContainersRequest: *j}
 	default:
@@ -452,5 +455,30 @@ func (h *HttpLinkContainersRequest) Handler(conf *http.HttpConfiguration) http.J
 		}
 
 		return &cjobs.LinkContainersRequest{ContainerLinks: data}, nil
+	}
+}
+
+type HttpAddContainerLinksRequest struct {
+	cjobs.AddContainerLinksRequest
+	http.DefaultRequest
+}
+
+func (h *HttpAddContainerLinksRequest) HttpMethod() string { return "POST" }
+func (h *HttpAddContainerLinksRequest) HttpPath() string   { return "/containers/links/add" }
+func (h *HttpAddContainerLinksRequest) Handler(conf *http.HttpConfiguration) http.JobHandler {
+	return func(context *jobs.JobContext, r *rest.Request) (interface{}, error) {
+		data := &containers.ContainerLinks{}
+		if r.Body != nil {
+			dec := json.NewDecoder(limitedBodyReader(r))
+			if err := dec.Decode(data); err != nil && err != io.EOF {
+				return nil, err
+			}
+		}
+
+		if err := data.Check(); err != nil {
+			return nil, err
+		}
+
+		return &cjobs.AddContainerLinksRequest{ContainerLinks: data}, nil
 	}
 }

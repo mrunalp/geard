@@ -50,6 +50,11 @@ func (h *HttpLinkContainersRequest) MarshalHttpRequestBody(w io.Writer) error {
 	return encoder.Encode(h.LinkContainersRequest)
 }
 
+func (h *HttpAddContainerLinksRequest) MarshalHttpRequestBody(w io.Writer) error {
+	encoder := json.NewEncoder(w)
+	return encoder.Encode(h.AddContainerLinksRequest)
+}
+
 // Apply the "label" from the job to the response
 func (h *HttpListContainersRequest) UnmarshalHttpResponse(headers nethttp.Header, r io.Reader, mode http.ResponseContentMode) (interface{}, error) {
 	if r == nil {
